@@ -126,8 +126,11 @@ Not so exciting without some kind of background...
 Luckily we can download basemaps into R using the map_data function in ggplot (among many others). There is an example for retrieving the Oregon county polygons. 
 
 ```{r plot-or}
+library(ggspatial)
 or <- map_data("county", "oregon") %>% 
   select(lon = long, lat, group, id = subregion)
+
+
 
 ```
 
@@ -136,7 +139,12 @@ c. Add your species's points to your choice or an Oregon basemap.
 ```{r plot-data-points-basemap}
 library(ggspatial)
 
+or <- map_data("county", "oregon") %>% 
+  select(lon = long, lat, group, id = subregion)
 
+ggplot() +
+  geom_polygon(data = or, aes(x=lon, y=lat, group=group), fill="lightblue", color="black") + 
+  geom_sf(data = femoratus_points, color="yellow", alpha=0.7)
 ```
 # Lab part 3: Cartography
 
