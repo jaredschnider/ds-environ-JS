@@ -158,7 +158,13 @@ additional attributes when you converted the dataframe to a spatial object.
 6. Push this lab to your github repo (just the .Rmd, don't push the data!)
 
 ```{r plot-creative}
-
+OR_ecoregions <- st_read("C:/Users/Admin/Downloads/ecoregions_2016/Ecoregions_OregonConservationStrategy.shp")
+ggplot() +
+  geom_sf(data = OR_ecoregions) +
+  scale_fill_brewer(palette = "Spectral", direction = -1) +
+  geom_polygon(data = or, aes(x = lon, y = lat, group = group)) +
+  geom_sf(data = femoratus_points, aes(color = County)) 
+  
 
 ```
 
