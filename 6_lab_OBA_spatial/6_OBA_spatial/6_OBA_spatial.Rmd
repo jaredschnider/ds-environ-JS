@@ -143,9 +143,13 @@ or <- map_data("county", "oregon") %>%
   select(lon = long, lat, group, id = subregion)
 
 ggplot() +
-  geom_polygon(data = or, aes(x=lon, y=lat, group=group), fill="lightblue", color="black") + 
-  geom_sf(data = femoratus_points, color="yellow", alpha=0.7)
+  geom_polygon(data = or, aes(x=lon, y=lat, group=group), fill="lightblue", 
+               color="black") + 
+  geom_sf(data = femoratus_points, color="yellow", alpha=0.7) +
+  labs(title="Map of Oregon Counties with A. femoratus locations", 
+       x="longitude", y="latitude")
 ```
+
 # Lab part 3: Cartography
 
 a. Here is your moment to explore your cartographic skills. 
@@ -163,7 +167,17 @@ ggplot() +
   geom_sf(data = OR_ecoregions) +
   scale_fill_brewer(palette = "Spectral", direction = -1) +
   geom_polygon(data = or, aes(x = lon, y = lat, group = group)) +
-  geom_sf(data = femoratus_points, aes(color = County)) 
+  geom_sf(data = femoratus_points, aes(color = County)) +
+  labs(title = "A. femoratus locations plotted on Oregon ecoregions", 
+       x="longitude", y="latitude", caption = "This map shows the distribution
+       of the bee species 'Agapostemon femoratus' 
+       across the ecoregions and 
+       counties of Oregon") +
+  annotation_scale(location="bl", width_hint=0.4) +
+  annotation_north_arrow(location="bl", which_north="true",
+                         pad_x = unit(0.0, "in"), pad_y = unit(0.2, "in"), 
+                         style = north_arrow_fancy_orienteering)
+
   
 
 ```
@@ -177,6 +191,72 @@ b. Create a plot that illustrates this summary data (box plot, barplot, scatter 
 c. Create a map of your cropped spatial data.
 
 ```{r buffers}
+head(OR_ecoregions)
+st_crs(OR_ecoregions)
+#st_crs(femoratus_points)
+femoratus_points <- st_transform(femoratus_points, crs = st_crs(OR_ecoregions))
+st_crs(femoratus_points) == st_crs(OR_ecoregions)
+```
+```{r}
+library(units)
+# Creating 500 km, 750 km, and 1000 km buffers
+buffers_500 <- st_buffer(femoratus_points, dist = 500000) 
+buffers_750 <- st_buffer(femoratus_points, dist = 750000)
+buffers_1000 <- st_buffer(femoratus_points, dist = 1000000)
+
+# Intersecting buffers with ecoregions
+intersect_500 <- st_intersection(buffers_500, OR_ecoregions)
+intersect_750 <- st_intersection(buffers_750, OR_ecoregions)
+intersect_1000 <- st_intersection(buffers_1000, OR_ecoregions)
+
+# Calculating summary statistic
+summary_500 <- intersect_500 %>%
+  group_by(Ecoregion) %>%
+  summarize(total_area = sum(st_area(geometry)))
+
+summary_750 <- intersect_750 %>%
+  group_by(Ecoregion) %>%
+  summarize(total_area = sum(st_area(geometry)))
+
+summary_1000 <- intersect_1000 %>%
+  group_by(Ecoregion) %>%
+  summarize(total_area = sum(st_area(geometry)))
+
+summary_all <- bind_rows(
+  mutate(summary_500, buffer = "500 km", total_area = as.numeric(total_area)/1e6),
+  mutate(summary_750, buffer = "750 km", total_area = as.numeric(total_area)/1e6),
+  mutate(summary_1000, buffer = "1000 km", total_area = as.numeric(total_area)/1e6)
+)
+
+summary_all %>%
+  group_by(buffer, Ecoregion) %>%
+  summarize(count = n())
+
+
+# plotting the are of the buffers, and which ecoregions they overlap with
+ggplot(summary_all, aes(x = buffer, y = total_area, color = Ecoregion)) +
+  geom_jitter(width=0.2, height=0) +
+  scale_y_log10() +
+  labs(title = "Ecoregion Area Within Buffers Around A. femoratus Points",
+       x = "Buffer Distance",
+       y = "Total Area in log scale (sq km)",
+       fill = "Ecoregion")
+
+
+```
+
+
+```{r}
+
+ggplot() +
+  geom_sf(data = OR_ecoregions, fill = "lightgray", color = "black") +
+  geom_sf(data = summary_500, aes(fill = Ecoregion), alpha = 0.5) +
+  geom_sf(data = femoratus_points, color = "black", size = 1) +
+  labs(title = "Ecoregions Intersected by 500 km Buffer",
+       x = "Longitude", y = "Latitude", caption="This map shows in color which
+       ecoregions are overlapped by the 500 km buffer around locations
+       of A. femoratus") +
+  scale_fill_brewer(palette = "Spectral")
 
 
 ```
