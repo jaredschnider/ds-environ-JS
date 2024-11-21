@@ -121,6 +121,18 @@ car_mat <- matrix(carnivores, nrow = length(carnivores), ncol = length(carnivore
 
 filtered_mat <- adj_matrix * car_mat
 filtered_mat
+col_sums1 <- colSums(filtered_mat)
+col_sums1
+
+# same thing? 
+
+adj_matrix2 <- sweep(adj_matrix, 2, carnivores, `*`)
+print(adj_matrix2)
+row_sums <- rowSums(adj_matrix2)
+col_sums <- colSums(adj_matrix2)
+row_sums
+col_sums
+
 ```
 
 # Lab part 2: Breaking the networks into time periods
@@ -133,6 +145,24 @@ HINT: You will need to zero out the rows where a species in not present in that 
 
 ```{r t1-time-webs}
 
+present_species <- sp_occ[, 2] == 1
+
+adj_matrix_time2 <- adj_matrix
+
+# Zero out rows and columns of extinct species
+adj_matrix_time2[!present_species, ] <- 0
+adj_matrix_time2[, !present_species] <- 0
+
+# Check the number of rows with probabilities > 0
+nonzero_rows <- rowSums(adj_matrix_time2) > 0
+nonzero_row_count <- sum(nonzero_rows)
+
+
+cat("the number of rows with probabilities > 0 is", nonzero_row_count, "\n")
+cat("the number of species present is", sum(present_species), "\n")
+
+
+
 ```
 
 b. Now create a network for all of the time points by creating a list where each element is a network. You will need to use a for loop, or an 'lapply' if you feel like experimenting with apply functions. Print the first 5 columns and rows of the 5th time period. 
@@ -140,6 +170,8 @@ b. Now create a network for all of the time points by creating a list where each
 HINT: If choosing the for loop route, remember to create an empty list of a specific length use the function 'vector'. To access a specific element of a list, use [[]], for example cool_list[[1]] accesses the first element of the list.
 
 ```{r all-time-webs}
+
+
 
 ```
 
