@@ -109,7 +109,7 @@ for (i in 1:n){
 
 diag(adj_matrix) <- 0
 
-print(adj_matrix)
+head(adj_matrix)
 
 ```
 
@@ -117,21 +117,12 @@ d. Now that you have your matrix of potential feeding interactions based on body
 HINT: the function 'sweep' may be useful, though there are many approaches to do the needed matrix multiplication. Print the row and column sums. 
 
 ```{r create-adj-mat-2}
-car_mat <- matrix(carnivores, nrow = length(carnivores), ncol = length(carnivores), byrow = TRUE)
 
-filtered_mat <- adj_matrix * car_mat
-filtered_mat
-col_sums1 <- colSums(filtered_mat)
-col_sums1
+adj_matrix <- sweep(adj_matrix, 2, carnivores, `*`)
+head(adj_matrix)
+row_sums <- rowSums(adj_matrix)
+col_sums <- colSums(adj_matrix)
 
-# same thing? 
-
-adj_matrix2 <- sweep(adj_matrix, 2, carnivores, `*`)
-print(adj_matrix2)
-row_sums <- rowSums(adj_matrix2)
-col_sums <- colSums(adj_matrix2)
-row_sums
-col_sums
 
 ```
 
@@ -145,23 +136,14 @@ HINT: You will need to zero out the rows where a species in not present in that 
 
 ```{r t1-time-webs}
 
-present_species <- sp_occ[, 2] == 1
 
-adj_matrix_time2 <- adj_matrix
+second_period <- sp_occ$V2
+second_period
 
-# Zero out rows and columns of extinct species
-adj_matrix_time2[!present_species, ] <- 0
-adj_matrix_time2[, !present_species] <- 0
-
-# Check the number of rows with probabilities > 0
-nonzero_rows <- rowSums(adj_matrix_time2) > 0
-nonzero_row_count <- sum(nonzero_rows)
-
-
-cat("the number of rows with probabilities > 0 is", nonzero_row_count, "\n")
-cat("the number of species present is", sum(present_species), "\n")
-
-
+adj_matrix[second_period == 0, ] <- 0
+adj_matrix[,second_period == 0] <- 0
+num_interactions <- sum(second_period == 1)
+num_interactions
 
 ```
 
@@ -172,6 +154,16 @@ HINT: If choosing the for loop route, remember to create an empty list of a spec
 ```{r all-time-webs}
 
 
+n_points <- ncol(sp_occ)
+
+networks <- vector("list", length = n_points)
+
+for(i in 1:n_points){
+  present_species <- sp_occ[i, 1] == 1
+  networks[[i]] <- adj_matrix[present_species, present_species]
+}
+
+print(networks[[5]][1:5, 1:5])
 
 ```
 
@@ -180,26 +172,93 @@ a. Convert the adjacency matrices to igraph class objects using the function 'gr
 
 ```{r graphs}
 
+all_webs <- vector("list", length(networks))
+
+for(i in seq_along(networks)){
+  all_webs[[i]] <- graph_from_adjacency_matrix(networks[[i]],
+                                               mode = "directed",
+                                               weighted = TRUE,
+                                               diag = FALSE)
+}
+head(all_webs)
 ```
 
 b. Plot three networks of your choice, using different colors for the predators and prey.
 
 ```{r plot-g1}
-## assign groups as carnivore or herbivore
+
+groups <- carnivores[V(all_webs[[5]])$name]
+g5 <- all_webs[[5]]
+
+mod_g5 <- cluster_walktrap(g5)
+groups <- membership(mod_g5)
+
+g5_net3d <- igraph_to_networkD3(g5, group=groups,
+                                         what = "both")
 
 
-## convert to a network 3d object
+
 
 ## plot the network
+
+forceNetwork(Links = g5_net3d$links,
+             Nodes = g5_net3d$nodes,
+            Source = "source", Target = "target",
+            Value = "value",  NodeID = "name",
+             Group = "group", 
+            opacity = 0.8, zoom=TRUE, opacityNoHover = 0.9)
+
+
 
 
 ```
 
 ```{r plot-g2}
+groups <- carnivores[V(all_webs[[2]])$name]
+g2 <- all_webs[[2]]
+
+mod_g2 <- cluster_walktrap(g2)
+groups <- membership(mod_g2)
+
+g2_net3d <- igraph_to_networkD3(g2, group=groups,
+                                         what = "both")
+
+
+
+
+## plot the network
+
+forceNetwork(Links = g2_net3d$links,
+             Nodes = g2_net3d$nodes,
+            Source = "source", Target = "target",
+            Value = "value",  NodeID = "name",
+             Group = "group", 
+            opacity = 0.8, zoom=TRUE, opacityNoHover = 0.9)
+
 
 ```
 
 ```{r plot-g3}
+groups <- carnivores[V(all_webs[[12]])$name]
+g12 <- all_webs[[12]]
+
+mod_g12 <- cluster_walktrap(g12)
+groups <- membership(mod_g12)
+
+g12_net3d <- igraph_to_networkD3(g12, group=groups,
+                                         what = "both")
+
+
+
+
+## plot the network
+
+forceNetwork(Links = g12_net3d$links,
+             Nodes = g12_net3d$nodes,
+            Source = "source", Target = "target",
+            Value = "value",  NodeID = "name",
+             Group = "group", 
+            opacity = 0.8, zoom=TRUE, opacityNoHover = 0.9)
 
 ```
 
