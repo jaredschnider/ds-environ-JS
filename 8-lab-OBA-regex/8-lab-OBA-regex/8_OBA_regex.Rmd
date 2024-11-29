@@ -1,6 +1,6 @@
 ---
 title: "Using regular expressions"
-output: github_document
+output: pdf_document
 author:
   - Lauren Ponisio
 ---
@@ -57,55 +57,8 @@ c. Work together as a class to resolve the issues you listed with the associated
 
 I have removed a really strange issue with special characters (R converted an apostrophie into a special character) to start things off. 
 
-Hint: You must \ any special characters. For example to use \s (matches any space, tab, or newline) you must use \\s in your pattern.
 
 ```{r}
-
-## Remove the special character
-oba$Associated.plant <- str_replace_all(oba$Associated.plant, "\x92", "")
-
-## To check that it worked
-sort(unique(oba$Associated.plant))[1:10]
-
-# removing common names in ()
-oba$Associated.plant <- gsub("\\s\\(.*?\\)", "", oba$Associated.plant)
-
-# removing lists
-oba <- oba[!grepl(",", oba$Associated.plant), ]
-
-# removing "net"
-oba$Associated.plant <- str_replace_all(oba$Associated.plant, "net", "")
-
-# removing sp. from names
-oba$Associated.plant <- str_replace_all(oba$Associated.plant, "[A-Za-z]+[.]", "")
-
-# removing no names
-oba <- oba[oba$Associated.plant != "", ]
-
-# removing genus XX
-
-oba$Associated.plant <- str_replace_all(oba$Associated.plant, "[A-Za-z]++[Xx]", "")
-
-# fix yarrow
-oba$Associated.plant[oba$Associated.plant == "Yarrow"] <- "Achillea millefolium"
-
-# remove weird one
-oba <- oba[oba$Associated.plant != "weedy yellow comp.", ]
-
-# determining plant resolution
-oba$Plant.resolution <- sapply(oba$Associated.plant, function(x){
-  words <- unlist(strsplit(x," "))
-  if(length(words) == 1){
-    "Family/Genus/Common Name"
-  } else if(length(words) == 2 && grepl("//.", x)){
-    "Genus"
-  } else if(length(words) == 2){
-    "GenusSpecies"
-  } else {
-    "Missing/Complex"
-  }
-})
-
 
 ## Remove the special character
 oba$Associated.plant <- str_replace_all(oba$Associated.plant, "\x92", "")
@@ -136,8 +89,27 @@ oba$Associated.plant <- str_replace_all(oba$Associated.plant, " sp$", " sp.")
  
 ## Remove the or and everything after it, could also consider dropping these...
 oba$Associated.plant <- str_replace_all(oba$Associated.plant, " or .*", "")
- 
+
+oba$Associated.plant <- str_replace_all(oba$Associated.plant, "[A-Za-z] ++ [Xx]", "")
+
+# determining plant resolution
+oba$plantResolution <- sapply(oba$Associated.plant, function(x){
+  words <- unlist(strsplit(x," "))
+  if(length(words) == 1){
+    "Family/Genus/Common Name"
+  } else if(length(words) == 2 && grepl("//.", x)){
+    "Genus"
+  } else if(length(words) == 2){
+    "GenusSpecies"
+  } else {
+    "Missing/Complex"
+  }
+})
+
+
+
 sort(unique(oba$Associated.plant))[1:10]
+
 
 
 
@@ -155,7 +127,10 @@ Hint: `str_count` may be useful.
 
 ```{r}
 
-oba$plantTaxaWordCount <- str_count(oba$Associated.plant, "\\S+") 
+oba <- oba %>%
+  mutate(plantTaxaWordCount = str_count(Associated.plant, "\\S+"))
+
+
 
 head(oba$plantTaxaWordCount, 50)
 
@@ -175,17 +150,20 @@ for (i in 1:nrow(oba)) {
   if (grepl("aceae$", oba$Associated.plant[i], ignore.case = TRUE)) {
     # If the name ends with "aceae", it's a family
     oba$plantResolution[i] <- "Family"
-  } else if (oba$plantTaxaWordCount[i] == 1) {
-    # If there is only one word, it's a genus
-    oba$plantResolution[i] <- "Genus"
-  } else if (oba$plantTaxaWordCount[i] >= 2 && !grepl("sp\\.$", oba$Associated.plant[i], ignore.case = TRUE)) {
-    # If there are two or more words and does not end with "sp.", it's a species
+  } else if(grepl("\\S+\\s+\\S+", oba$Associated.plant[i]) && !grepl("sp\\.$", oba$Associated.plant[i])){
     oba$plantResolution[i] <- "Species"
-  } else {
-    # If it doesn't meet any conditions, leave as NA
-    oba$plantResolution[i] <- NA
+  } else if(grepl("^\\S+$", oba$Associated.plant[i])){
+    oba$plantResolution[i] <- "Genus"
   }
+  # } else if grepl(oba$plantTaxaWordCount[i] == 1) {
+  #   # If there is only one word, it's a genus
+  #   oba$plantResolution[i] <- "Genus"
+  # } else if (oba$plantTaxaWordCount[i] >= 2 && !grepl("sp\\.$", oba$Associated.plant[i], ignore.case = TRUE)) {
+  #   # If there are two or more words and does not end with "sp.", it's a species
+  #   oba$plantResolution[i] <- "Species"
+  # }
 }
+
 
 table(oba$plantResolution)
 
@@ -194,19 +172,29 @@ table(oba$plantResolution)
 c. For those that are identified to genus but are lacking an sp., add that now so that they will not be treated as separate plant species (i.e., Rosa vs Rosa sp.). You can do this with a regular expression and using 'gsub' or 'string_replace_all' or by counting up the number of words in Associated.plant. 
 ```{r}
 
-oba$Associated.plant <- gsub("^([A-Za-z]+)$", "\\1 sp.", oba$Associated.plant)
-
-data$Associated.plant <- str_replace_all(data$Associated.plant, "^([A-Za-z]+)$", "\\1 sp.")
+oba$Associated.plant <- ifelse(
+  is.na(oba$Associated.plant), 
+  NA, 
+  gsub("^([A-Za-z]+)$", "\\1 sp.", oba$Associated.plant)
+)
 
 ## To check that it worked
-unique(oba$Associated.plant[oba$plantResolution == "genus"])
+unique(oba$Associated.plant[oba$plantResolution == "Genus"])
 ```
 
 d. Create a new column called plantGenus that is the genus if the associated taxa was resolved to species or genus, and NA if it was resolved to family. 
 ```{r}
 
+# Create plantGenus column
+oba$plantGenus <- ifelse(
+  grepl("^[A-Za-z]+(\\s[A-Za-z]+)?$", oba$Associated.plant), # Check for genus or species (1-2 words)
+  sub(" .*", "", oba$Associated.plant),                      # Extract the first word (genus)
+  NA                                                          # Assign NA if it's family level
+)
+
+
 ## To check finish with
-table(oba$plantGenus)
+print(oba$plantGenus[1:100])
 ```
 
 Now you have nice clean plant data to make networks out of, or more easily count up the number of plant species in an area. 
